@@ -58,6 +58,25 @@
 	-moz-box-shadow: none;
 	box-shadow: none;
 }
+/*activity comment buttons*/
+.mpp-activity-commentable-item {
+}
+
+.mpp-activity-commentable-item .ac-textarea {
+	margin-bottom: 65px !important;
+}
+.mpp-activity-commentable-item .mpp-activity-comment-upload-buttons{
+	top: -85px;
+	margin-left: 65px;
+	position: relative;
+}
+
+.mpp-activity-comment-upload-buttons a,
+.mpp-activity-comment-upload-buttons a img{
+	-webkit-box-shadow: none !important;
+	-moz-box-shadow: none !important;
+	box-shadow: none !important;
+}
 /**
  * Feedback and notices
  */

@@ -244,6 +244,77 @@ jQuery(document).ready(function () {
         return false;
     }
 
+    // Activity comment uploader.
+    mpp.activity_comment_uploader = null;
+    var $old_container = null;
+    jq( document).on('click', '.mpp-activity-comment-upload-buttons a', function () {
+        var $this = jq(this);
+        var $form = $this.parents('form');
+        var $textarea = $form.find( '.ac-textarea' );
+        var $submit_button = $form.find('input[type="submit"]');
+        // move the dragdrop area to this activity, create a new instance
+        if( mpp.activity_comment_uploader !== null ) {
+            // destroy the old instance.
+            mpp.activity_comment_uploader.uploader.destroy();
+            if ( $old_container !== null ) {
+                $old_container.remove();
+            }
+        }
+
+        var ctype = "";
+
+        var $dz_container = jq('#mpp-activity-comment-dropzone-template').children().clone();
+        $textarea.append( $dz_container );
+        $old_container = $dz_container;
+        mpp.activity_comment_uploader = new mpp.Uploader({
+            container: 'body',
+            dropzone: $dz_container.find('#mpp-upload-dropzone-activity-comment'),
+            browser: $dz_container.find('#mpp-upload-media-button-activity-comment'),
+            feedback: $dz_container.find('#mpp-activity-comment-upload-feedback-activity'),
+            media_list: $dz_container.find('#mpp-activity-comment-uploaded-media-list'),//where we will list the media
+            uploading_media_list: _.template("<li id='<%= id %>'><span class='mpp-attached-file-name'><%= name %></span>(<span class='mpp-attached-file-size'><%= size %></spa>)<span class='mpp-remove-file-attachment'>x</span> <b></b></li>"),
+            uploaded_media_list: _.template("<li class='mpp-uploaded-media-item' id='mpp-uploaded-media-item-<%= id %>' data-media-id='<%= id %>'><img src='<%= url %>' /><a href='#' class='mpp-delete-uploaded-media-item'>x</a></li>"),
+            success: function (file) {
+                //let the Base class success method handle the things
+                mpp.Uploader.prototype.success(file);
+                //save media id in cookie
+               // mpp_add_attached_media(file.get('id'), ctype);
+
+            },
+            error: function (reason, data, file) {
+                //let the Base class error handler do its job.
+                mpp.Uploader.prototype.error(reason, data, file);
+                $submit_button.prop('disabled', false );
+            },
+            complete: function () {
+                mpp.Uploader.prototype.complete();
+                $submit_button.prop('disabled', false );
+            },
+            allFilesAdded: function (up) {
+                $submit_button.prop('disabled', true );
+            }
+        });
+        mpp.activity_comment_uploader.param('context', 'activity');
+        var browser = mpp.activity_comment_uploader.browser;//.remove();
+        //set current type as the clicked button
+        _mppData.current_type =  $this.data('media-type');//use id as type detector , may be photo/audio/video
+        mpp_setup_uploader_file_types(mpp.activity_comment_uploader);
+
+        // refresh uploader.
+        mpp.activity_comment_uploader.uploader.refresh();
+
+        // slightly delayed click.
+       setTimeout(function () {
+            jq(browser).click();//simulate click;
+        }, 100);
+
+        return false;
+    });
+
+    // for activity comment.
+    jq(document).on('click', '.acomment-reply', function () {
+        console.log(jq(this).attr('id'));
+    } );
 
     /** For single gallery  upload */
 

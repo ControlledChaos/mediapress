@@ -603,24 +603,31 @@ function mpp_setup_uploader_file_types(mpp_uploader, type) {
 }
 
 /**
+ * Get attached media ids.
  *
  * @returns {Object}Get media attached to the activity form
  */
-function mpp_get_attached_media() {
-
-    return jQuery('body').data('mpp-attached-media');
+function mpp_get_attached_media(type) {
+    // mpp-attached-media-acomment//activity comment.
+    var data_key = type !== undefined ? 'mpp-attached-media-' + type : 'mpp-attached-media';
+    return jQuery('body').data( data_key );
 }
 
 /**
  * Add a media to attachment list
  *
- * @param int media_id
+ * @param {int} media_id media id.
+ * @param {string} type config type.
+ *
  * @returns {undefined}
  */
-function mpp_add_attached_media(media_id) {
+function mpp_add_attached_media(media_id, type ) {
+
+    var data_key = type !== undefined ? 'mpp-attached-media-' + type : 'mpp-attached-media';
 
     var $body = jQuery('body');
-    var attached_media = $body.data('mpp-attached-media');
+
+    var attached_media = $body.data(data_key);
 
     if (!attached_media) {
         attached_media = [];
@@ -632,20 +639,22 @@ function mpp_add_attached_media(media_id) {
 
     attached_media = attached_media.join(',');
 
-    $body.data('mpp-attached-media', attached_media);
+    $body.data(data_key, attached_media);
 
 }
 
 /**
  * Remove an attached media id from dom
  *
- * @param int media_id
+ * @param {int} media_id media id.
+ * @param {string} type config type.
  * @returns {Boolean}
  */
-function mpp_remove_attached_media(media_id) {
+function mpp_remove_attached_media(media_id, type ) {
+    var data_key = type !== undefined ? 'mpp-attached-media-' + type : 'mpp-attached-media';
 
     var $body = jQuery('body');
-    var attached_media = $body.data('mpp-attached-media');
+    var attached_media = $body.data(data_key);
 
     if (!attached_media) {
         return false;
@@ -655,9 +664,14 @@ function mpp_remove_attached_media(media_id) {
         attached_media = attached_media.join(',');
     }
 
-    $body.data('mpp-attached-media', attached_media);
+    $body.data(data_key, attached_media);
 }
 
-function mpp_reset_attached_media() {
-    jQuery('body').data('mpp-attached-media', '');
+/**
+ * Reset attached media ids.
+ * @param {string} type
+ */
+function mpp_reset_attached_media(type) {
+    var data_key = type !== undefined ? 'mpp-attached-media-' + type : 'mpp-attached-media';
+    jQuery('body').data(data_key, '');
 }
