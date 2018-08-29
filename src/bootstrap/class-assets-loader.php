@@ -41,8 +41,7 @@ class Assets_Loader {
 	 * Callbacks to various hooks
 	 */
 	public function setup() {
-		add_action( 'bp_enqueue_scripts', array( $this, 'load_assets' ) );
-		add_action( 'bp_admin_enqueue_scripts', array( $this, 'load_assets' ) );
+		add_action( 'wp_enqueue_scripts', array( $this, 'load_assets' ) );
 	}
 
 	/**
@@ -65,37 +64,14 @@ class Assets_Loader {
 	 * Register vendor scripts.
 	 */
 	private function register_vendors() {
-		$api_key = bugmapp_get_option( 'api_key' );
-		wp_register_script( 'bugmapp_map_lib', "https://maps.googleapis.com/maps/api/js?key={$api_key}&libraries=places" );
+		// Register vendor libraries
 	}
 
 	/**
 	 * Register core assets.
 	 */
 	private function register_core() {
-
-		$url     = bugmapp()->get_url();
-		$version = bugmapp()->version;
-
-		wp_register_style( 'bugmapp_css', $url . 'assets/css/bugmapp.css', array(), $version );
-
-		wp_register_script( 'bugmapp_js', $url . 'assets/js/bugmapp.js', array(
-			'jquery',
-			'bugmapp_map_lib',
-		), $version );
-
-		$this->data = array(
-			'mapOptions'  => bugmapp_get_map_js_options(),
-			'isMemberDir' => bp_is_members_directory(),
-			'isGroupDir'  => bp_is_groups_directory(),
-		);
-
-		if ( function_exists( 'bugmapp_get_mapped_fields' ) ) {
-			$mapped_fields = bugmapp_get_mapped_fields();
-			$mapped_fields = ( $mapped_fields ) ? $mapped_fields : array();
-
-			$this->data['mappedFields'] = $mapped_fields;
-		}
+		// register core assets files
 	}
 
 	/**
@@ -103,32 +79,11 @@ class Assets_Loader {
 	 */
 	public function enqueue() {
 
-		if ( ! $this->needs_loading() ) {
-			return;
-		}
-
-		wp_enqueue_style( 'bugmapp_css' );
-		wp_enqueue_script( 'bugmapp_js' );
-
-		wp_localize_script( 'bugmapp_js', 'BugMapOpt', $this->data );
 	}
 
 	/**
 	 * Check should we need to load plugin assets or not
 	 */
 	private function needs_loading() {
-
-		if ( is_admin() && isset( $_GET['page'] ) &&
-		     in_array( $_GET['page'], array( 'bp-groups', 'bp-profile-edit', 'bp-profile-setup' ) ) ) {
-			return true;
-		} elseif ( bp_is_groups_directory() || bp_is_members_directory() ) {
-			return true;
-		} elseif ( bp_is_user() && ( bp_is_profile_component() ) ) {
-			return true;
-		} elseif ( bp_is_group() ) {
-			return true;
-		}
-
-		return false;
 	}
 }
