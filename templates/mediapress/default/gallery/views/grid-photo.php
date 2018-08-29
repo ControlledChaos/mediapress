@@ -16,7 +16,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 		<div class='mpp-item-entry mpp-media-entry mpp-photo-entry'>
 			<a href="<?php mpp_media_permalink(); ?>" <?php mpp_media_html_attributes( array( 'class' => 'mpp-item-thumbnail mpp-media-thumbnail mpp-photo-thumbnail' ) ); ?>>
-				<img src="<?php mpp_media_src( 'thumbnail' ); ?>" alt="<?php echo esc_attr( mpp_get_media_title() ); ?> "/>
+                <img src="<?php mpp_media_src( 'thumbnail' ); ?>" alt="<?php echo esc_attr( mpp_get_media_title() ); ?> "/>
 			</a>
 		</div>
 

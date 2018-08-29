@@ -19,6 +19,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+use PressThemes\MediaPress\Bootstrap\Autoloader;
+use PressThemes\MediaPress\Bootstrap\Bootstrapper;
+use PressThemes\MediaPress\Schema\Schema;
 
 /**
  * The main MediaPress Singleton class
@@ -333,8 +336,11 @@ class MediaPress {
 	 * MediaPress constructor. Internally called to create the singleton instance.
 	 */
 	private function __construct() {
-
+		$this->plugin_path = plugin_dir_path( __FILE__ );
+		$this->plugin_url  = plugin_dir_url( __FILE__ );
 		$this->basename = plugin_basename( __FILE__ );
+
+		$this->bootstrap();
 		$this->setup();
 	}
 
@@ -354,57 +360,34 @@ class MediaPress {
 		return self::$instance;
 	}
 
-
 	/**
 	 * Setup MediaPress
 	 */
-	public function setup() {
+	public function bootstrap() {
 
-		$this->plugin_path = plugin_dir_path( __FILE__ );
-		$this->plugin_url  = plugin_dir_url( __FILE__ );
+		// Load autoloader.
+		require_once $this->path . 'src/bootstrap/class-autoloader.php';
 
-		global $wpdb;
-		// MediaPress Logs table name.
-		$this->store_table_name( 'logs', $wpdb->prefix . 'mpp_logs' );
+		// Register autoloader.
+		spl_autoload_register( new Autoloader( 'PressThemes\\MediaPress\\', __DIR__ . '/src/' ) );
 
-		// register_activation_hook.
-		add_action( 'activate_' . $this->basename, array( $this, 'do_activation' ) );
+		register_activation_hook( __FILE__, array( $this, 'do_activation' ) );
 		// Register deactivation hook for cleanup.
-		add_action( 'deactivate_' . $this->basename, array( $this, 'do_deactivation' ) );
-		// Load the MediaPress core.
-		add_action( 'plugins_loaded', array( $this, 'load' ), 0 );
-		// Load translation files.
-		add_action( 'init', array( $this, 'load_textdomain' ), 0 );
-		add_action( 'update_option_mpp-settings', array( $this, 'flush_rewrite_rules_on_settings_update' ), 10, 2 );
+		register_deactivation_hook( __FILE__, array( $this, 'do_deactivation' ) );
 	}
 
-
-	/**
-	 * Loads the MediaPress Core Loader class
-	 *
-	 * Loading is handled by the MPP_Core_Loader
-	 */
-	public function load() {
-
-		require_once $this->plugin_path . 'mpp-loader.php';
-
-		$loader = new MPP_Core_Loader();
-		$loader->load();
-
-		do_action( 'mpp_loaded' );
+	public function setup() {
+		Bootstrapper::boot();
 	}
-
 
 	/**
 	 * Load logger on demand
 	 */
 	public function load_logger() {
-
 		$path = $this->plugin_path;
 		require_once $path . 'core/logger/class-mpp-logger.php';
 		require_once $path . 'core/logger/class-mpp-db-logger.php';
 		require_once $path . 'core/logger/mpp-logger-functions.php';
-
 	}
 
 
@@ -434,8 +417,8 @@ class MediaPress {
 		// multiple terms creation by WordPress is too much db intensive, let us do it lightly.
 		mpp_install_terms();
 
-		// on activation, create logger table.
-		mpp_install_db();
+		// on activation, create logger, media_items, gallery_items table.
+		Schema::create();
 
 		// schedule cron.
 		require_once $this->plugin_path . 'core/common/mpp-cron.php';
@@ -458,45 +441,6 @@ class MediaPress {
 		mpp_clear_scheduled_cron_job();
 
 	}
-
-
-	/**
-	 * Flush rewrite rules automatically when our settings is updated and the slug for permalink/archive change.
-	 *
-	 * @param array $old old settings.
-	 * @param array $new new settings.
-	 */
-	public function flush_rewrite_rules_on_settings_update( $old, $new ) {
-
-		// for the time when there was no old option saved.
-		if ( empty( $old ) || empty( $new ) ) {
-			flush_rewrite_rules();
-			return;
-		}
-
-		$old_permalink = isset( $old['gallery_permalink_slug'] )? $old['gallery_permalink_slug'] : false;
-		$new_permalink = isset( $new['gallery_permalink_slug'] )? $new['gallery_permalink_slug'] : false;
-
-		$old_archive_slug = isset( $old['gallery_archive_slug'] )? $old['gallery_archive_slug'] : false;
-		$new_archive_slug = isset( $new['gallery_archive_slug'] )? $new['gallery_archive_slug'] : false;
-
-		// Detect change in gallery archive/single slug.
-		if ( ( $old_archive_slug != $new_archive_slug ) || ( $old_permalink != $new_permalink ) ) {
-			// change happened.
-			MPP_Post_Type_Helper::get_instance()->init();
-
-			flush_rewrite_rules();
-		}
-	}
-
-
-	/**
-	 * Load translation files
-	 */
-	public function load_textdomain() {
-		load_plugin_textdomain( 'mediapress', false, dirname( $this->basename ) . '/languages' );
-	}
-
 
 	/**
 	 * Get the url of the MediaPress plugin directory ( e.g http://site.com/wp-content/plugins/mediapress/)

@@ -27,6 +27,7 @@ function mpp_install_db() {
 	$sql = array();
 
 	$log_table = mediapress()->get_table_name( 'logs' );
+	$media_table = mediapress()->get_table_name( 'media_table' );
 
 	$sql[] = "CREATE TABLE IF NOT EXISTS {$log_table} (
 		id bigint(20) NOT NULL AUTO_INCREMENT,
@@ -36,6 +37,26 @@ function mpp_install_db() {
 		value varchar(32) NOT NULL,
 		logged_at timestamp NOT NULL DEFAULT '0000-00-00 00:00:00' ON UPDATE CURRENT_TIMESTAMP,
 		PRIMARY KEY (id)
+	) {$charset_collate};";
+
+	$sql[] = "CREATE TABLE IF NOT EXISTS {$media_table} (
+		media_id bigint(20) NOT NULL,
+		user_id bigint(20) NOT NULL,
+		gallery_id bigint(20) NOT NULL,
+		context varchar(32) NULL,
+		type varchar(32) NOT NULL,
+		status varchar(32) NOT NULL,
+		component varchar(32) NOT NULL,
+		component_id bigint(20) NOT NULL,
+		storage varchar(50) NOT NULL,
+		is_orphan tinyint(1) NOT NULL,
+		is_remote tinyint(1) NOT NULL,
+		is_raw tinyint(1) NOT NULL,
+		is_oembed tinyint(1) NOT NULL,
+		source varchar(2083) NOT NULL,
+		oembed_content longtext NOT NULL,
+		oembed_time DATETIME NOT NULL,
+		PRIMARY KEY (media_id)
 	) {$charset_collate};";
 
 	dbDelta( $sql );

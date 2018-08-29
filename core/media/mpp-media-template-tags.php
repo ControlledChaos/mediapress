@@ -106,6 +106,7 @@ function mpp_media_src( $size = '', $media = null ) {
 function mpp_get_media_src( $size = '', $media = null ) {
 
 	$media = mpp_get_media( $media );
+
 	// if media is not photo and the type specified is empty, or not 'original' get cover.
 	if ( 'photo' !== $media->type ) {
 

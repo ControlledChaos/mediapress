@@ -23,6 +23,13 @@ class MPP_Media_Query extends WP_Query {
 	private $post_type;
 
 	/**
+	 * Build params array for private use only
+	 *
+	 * @var array
+	 */
+	private $mpp_query_args = array();
+
+	/**
 	 * MPP_Media_Query constructor.
 	 *
 	 * @param array $query array of query vars.
@@ -54,16 +61,24 @@ class MPP_Media_Query extends WP_Query {
 		// detach 3rd party hooks. These are the hooks that caused most pain in our query.
 		$helper->detach( 'pre_get_posts', 'posts_join', 'posts_where', 'posts_groupby' );
 
+		$this->mpp_query_args = $args;
+
 		// now, if there is any MediaPress specific plugin interested in attaching to the above hooks,
 		// the should do it on the action 'mpp_before_media_query'.
 		do_action( 'mpp_before_media_query' );
 
+		add_filter( 'posts_join', array( $this, 'modify_join' ) );
+		add_filter( 'posts_where', array( $this, 'modify_where' ) );
+
 		$posts = parent::query( $args );
+
+		remove_filter( 'posts_join', array( $this, 'modify_join' ) );
+		remove_filter( 'posts_where', array( $this, 'modify_where' ) );
 
 		// if you need to do some processing after the query has finished.
 		do_action( 'mpp_after_media_query' );
 
-		// restore hooks to let it work as expected for others..
+		// restore hooks to let it work as expected for others.
 		$helper->restore( 'pre_get_posts', 'posts_join', 'posts_where', 'posts_groupby' );
 
 		return $posts;
@@ -208,142 +223,10 @@ class MPP_Media_Query extends WP_Query {
 			'_mpp_mapped_query' => true,
 		);
 
-		// we will need to build tax query/meta query
-		// taxonomy query to filter by component|status|privacy.
-		$tax_query = isset( $r['tax_query'] ) ? $r['tax_query'] : array();
-
-		// meta query.
-		$gmeta_query = array();
-
-		$type         = $r['type'];
-		$status       = $r['status'];
-		$component    = $r['component'];
-		$component_id = $r['component_id'];
-
-		if ( isset( $r['meta_key'] ) && $r['meta_key'] ) {
-			$wp_query_args['meta_key'] = $r['meta_key'];
-		}
-
-		if ( isset( $r['meta_key'] ) && $r['meta_key'] && isset( $r['meta_value'] ) ) {
-			$wp_query_args['meta_value'] = $r['meta_value'];
-		}
-
-		// if meta query was specified, let us keep it and we will add our conditions.
-		if ( ! empty( $r['meta_query'] ) ) {
-			$gmeta_query = $r['meta_query'];
-		}
-
-
-		// we will need to build tax query/meta query
-		// type, audio video etc
-		// if type is given and it is valid gallery type
-		// Pass one or more types.
-		if ( $r['gallery_id'] ) {
-			// if gallery id is given, avoid worrying about type.
-			$type      = '';
-			$component = '';
-		}
-
-		if ( ! empty( $type ) && mpp_are_registered_types( $type ) ) {
-			$type = mpp_string_to_array( $type );
-
-			// we store the terms with _name such as private becomes _private, members become _members to avoid conflicting terms.
-			$type = mpp_get_tt_ids( $type, mpp_get_type_taxname() );
-
-			$tax_query[] = array(
-				'taxonomy' => mpp_get_type_taxname(),
-				'field'    => 'term_taxonomy_id',
-				'terms'    => $type,
-				'operator' => 'IN',
-			);
-		}
-
-		// privacy
-		// pass one or more privacy level.
-		if ( ! empty( $status ) && mpp_are_registered_statuses( $status ) ) {
-
-			$status = mpp_string_to_array( $status );
-			$status = mpp_get_tt_ids( $status, mpp_get_status_taxname() );
-
-			$tax_query[] = array(
-				'taxonomy' => mpp_get_status_taxname(),
-				'field'    => 'term_taxonomy_id',
-				'terms'    => $status,
-				'operator' => 'IN',
-			);
-		}
-
-		if ( ! empty( $component ) && mpp_are_registered_components( $component ) ) {
-
-			$component = mpp_string_to_array( $component );
-			$component = mpp_get_tt_ids( $component, mpp_get_component_taxname() );
-
-			$tax_query[] = array(
-				'taxonomy' => mpp_get_component_taxname(),
-				'field'    => 'term_taxonomy_id',
-				'terms'    => $component,
-				'operator' => 'IN',
-			);
-		}
-
-		// done with the tax query.
-		if ( count( $tax_query ) > 1 ) {
-			$tax_query['relation'] = 'AND';
-		}
-
-		if ( ! empty( $tax_query ) ) {
-			$wp_query_args['tax_query'] = $tax_query;
-		}
-
-		// now, for components.
-		if ( ! empty( $component_id ) ) {
-			$meta_compare = '=';
-
-			if ( is_array( $component_id ) ) {
-				$meta_compare = 'IN';
-			}
-
-			$gmeta_query[] = array(
-				'key'     => '_mpp_component_id',
-				'value'   => $component_id,
-				'compare' => $meta_compare,
-				'type'    => 'UNSIGNED',
-			);
-		}
-
-		// also make sure that it only looks for gallery media.
-		$gmeta_query[] = array(
-			'key'     => '_mpp_is_mpp_media',
-			'value'   => 1,
-			'compare' => '=',
-			'type'    => 'UNSIGNED',
-		);
-
-		// should we avoid the orphaned media
-		// Let us discuss with the community and get it here.
-		if ( ! mpp_get_option( 'show_orphaned_media' ) ) {
-
-			$gmeta_query[] = array(
-				'key'     => '_mpp_is_orphan',
-				'compare' => 'NOT EXISTS',
-			);
-		}
-
-		// Let us filter the media by storage method.
-		if ( ! empty( $storage ) ) {
-
-			$gmeta_query[] = array(
-				'key'     => '_mpp_storage_method',
-				'value'   => $storage,
-				'compare' => '=',
-			);
-		}
-
-		// and what to do when a user searches by the media source(say youtube|vimeo|xyz.. how do we do that?)
-		// reset meta query.
-		if ( ! empty( $gmeta_query ) ) {
-			$wp_query_args['meta_query'] = $gmeta_query;
-		}
+		$wp_query_args['type']         = $r['type'];
+		$wp_query_args['status']       = $r['status'];
+		$wp_query_args['component']    = $r['component'];
+		$wp_query_args['component_id'] = $r['component_id'];
 
 		return $wp_query_args;
 
@@ -417,6 +300,111 @@ class MPP_Media_Query extends WP_Query {
 	public function rewind_media() {
 		parent::rewind_posts();
 	}
+
+	/**
+	 * Join media table with post table
+	 *
+	 * @param string $join Join clause of WP_Query.
+	 *
+	 * @return string
+	 *
+	 * @todo check wheather media query or not
+	 */
+	public function modify_join( $join ) {
+		global $wp_query, $wpdb;
+
+		$table_name = mediapress()->get_table_name( 'media_table' );
+
+		if ( $this->mpp_query_args['_mpp_mapped_query'] ) {
+			$join .= "INNER JOIN {$table_name} ON {$table_name}.media_id = $wpdb->posts.ID ";
+		}
+
+		return $join;
+	}
+
+	/**
+	 * Modify where condition
+	 *
+	 * @param string $where Where condition.
+	 *
+	 * @return string
+	 */
+	public function modify_where( $where ) {
+		global $wpdb;
+
+		$table_name = mediapress()->get_table_name( 'media_table' );
+
+		if ( ! $this->mpp_query_args['_mpp_mapped_query'] ) {
+			return $where;
+		}
+
+		if ( ! empty( $this->mpp_query_args['type'] ) ) {
+			$where = $where . ' AND ' . $this->prepare_items_for_in_clause( "{$table_name}.type", "IN", $this->mpp_query_args['type'], "%s" );
+		}
+
+		if ( ! empty( $this->mpp_query_args['status'] ) ) {
+			$where = $where . ' AND ' . $this->prepare_items_for_in_clause( "{$table_name}.status", "IN", $this->mpp_query_args['status'], '%s' );
+		}
+
+		if ( ! empty( $this->mpp_query_args['component'] ) ) {
+			$where = $where . ' AND ' . $this->prepare_items_for_in_clause( " {$table_name}.component", "IN", $this->mpp_query_args['component'], '%s' );
+		}
+
+		if ( ! empty( $this->mpp_query_args['component_id'] ) ) {
+			$where = $where . ' AND ' . $this->prepare_items_for_in_clause( " {$table_name}.component_id", "IN", $this->mpp_query_args['component_id'], '%d' );
+		}
+
+		if ( ! empty( $this->mpp_query_args['storage'] ) ) {
+			$where = $where . $wpdb->prepare( " AND {$table_name}.storage = %s", $this->mpp_query_args['storage'] );
+		}
+
+		if ( ! empty( $this->mpp_query_args['context'] ) ) {
+			$where = $where . $wpdb->prepare( " AND {$table_name}.context = %s", $this->mpp_query_args['context'] );
+		}
+
+		if ( ! mpp_get_option( 'show_orphaned_media' ) ) {
+			$where = $where . $wpdb->prepare( " AND {$table_name}.is_orphan != %d", 1 );
+		}
+
+		if ( ! empty( $this->mpp_query_args['is_remote'] ) ) {
+			$where = $where . $wpdb->prepare( " AND {$table_name}.is_remote = %d", 1 );
+		}
+
+		if ( ! empty( $this->mpp_query_args['is_raw'] ) ) {
+			$where = $where . $wpdb->prepare( " AND {$table_name}.is_raw = %d", 1 );
+		}
+
+		if ( ! empty( $this->mpp_query_args['is_oembed'] ) ) {
+			$where = $where . $wpdb->prepare( " AND {$table_name}.is_oembed = %d", 1 );
+		}
+
+		return $where;
+	}
+
+	private function prepare_items_for_in_clause( $column, $op, $values, $format = '%s' ) {
+
+		if( ! is_array( $values )) {
+			$values = explode( ',', $values );
+			$values = array_map( 'trim', $values );
+		}
+
+		global $wpdb;
+ 		$prepared = array();
+
+		foreach ( $values as $value ) {
+			$value = trim( $value );
+			// Let the prepare do its job.
+			$prepared[] =  $wpdb->prepare( $format, $value );
+		}
+
+		if ( empty( $prepared ) ) {
+			return false;
+		}
+
+		return sprintf( '%s %s ( %s )', trim( $column ), $op, implode( ',', $prepared ) );
+
+	}
+
 
 	/**
 	 * Check if it is main media query.
@@ -522,6 +510,8 @@ class MPP_Media_Query extends WP_Query {
 
 		return $ids;
 	}
+
+
 }
 
 /**

@@ -570,6 +570,7 @@ class MPP_Local_Storage extends MPP_Storage_Manager {
 
 		$dir_path = trailingslashit( dirname( $file ) ) . 'covers';
 		$url      = wp_get_attachment_url( $attachment_id );
+
 		$base_url = str_replace( wp_basename( $url ), '', $url );
 
 		// processing for audio/video cover.
